@@ -1,5 +1,6 @@
 library crop_your_image;
 
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';

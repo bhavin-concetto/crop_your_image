@@ -12,7 +12,9 @@ enum CropStatus { nothing, loading, ready, cropping }
 /// Widget for the entry point of crop_your_image.
 class Crop extends StatelessWidget {
   /// original image data
-  final Uint8List image;
+  final Uint8List? image;
+
+  final File? imageFile;
 
   /// callback when cropping completed
   final ValueChanged<Uint8List> onCropped;
@@ -91,8 +93,9 @@ class Crop extends StatelessWidget {
 
   const Crop({
     Key? key,
-    required this.image,
+    this.image,
     required this.onCropped,
+    this.imageFile,
     this.aspectRatio,
     this.initialSize,
     this.initialAreaBuilder,
@@ -110,6 +113,7 @@ class Crop extends StatelessWidget {
     this.interactive = false,
   })  : assert((initialSize ?? 1.0) <= 1.0,
             'initialSize must be less than 1.0, or null meaning not specified.'),
+
         super(key: key);
 
   @override
@@ -124,6 +128,7 @@ class Crop extends StatelessWidget {
           child: _CropEditor(
             image: image,
             onCropped: onCropped,
+            imageFile: imageFile,
             aspectRatio: aspectRatio,
             initialSize: initialSize,
             initialAreaBuilder: initialAreaBuilder,
@@ -147,7 +152,8 @@ class Crop extends StatelessWidget {
 }
 
 class _CropEditor extends StatefulWidget {
-  final Uint8List image;
+  final Uint8List? image;
+  final File? imageFile;
   final ValueChanged<Uint8List> onCropped;
   final double? aspectRatio;
   final double? initialSize;
@@ -169,6 +175,7 @@ class _CropEditor extends StatefulWidget {
     Key? key,
     required this.image,
     required this.onCropped,
+    this.imageFile,
     this.aspectRatio,
     this.initialSize,
     this.initialAreaBuilder,
@@ -329,8 +336,13 @@ class _CropEditorState extends State<_CropEditor> {
   }
 
   @override
-  void didChangeDependencies() {
-    final future = compute(_fromByteData, widget.image);
+  void didChangeDependencies() async {
+    var future;
+    if (widget.image != null) {
+      future = compute(_fromByteData, widget.image!);
+    } else {
+      future = compute(_fromFile, widget.imageFile!);
+    }
     _lastComputed = future;
     future.then((converted) {
       if (_lastComputed == future) {
@@ -465,8 +477,8 @@ class _CropEditorState extends State<_CropEditor> {
                         Positioned(
                           left: _imageRect.left,
                           top: _imageRect.top,
-                          child: Image.memory(
-                            widget.image,
+                          child: widget.image != null ? Image.memory(
+                            widget.image!,
                             width: _isFitVertically
                                 ? null
                                 : MediaQuery.of(context).size.width * _scale,
@@ -474,7 +486,14 @@ class _CropEditorState extends State<_CropEditor> {
                                 ? MediaQuery.of(context).size.height * _scale
                                 : null,
                             fit: BoxFit.contain,
-                          ),
+                          ) : Image.file(widget.imageFile!,
+                            width: _isFitVertically
+                                ? null
+                                : MediaQuery.of(context).size.width * _scale,
+                            height: _isFitVertically
+                                ? MediaQuery.of(context).size.height * _scale
+                                : null,
+                            fit: BoxFit.contain,),
                         ),
                       ],
                     ),
@@ -728,6 +747,22 @@ Uint8List _doCropCircle(List<dynamic> cropData) {
 // decode orientation awared Image.
 image.Image _fromByteData(Uint8List data) {
   final tempImage = image.decodeImage(data);
+  assert(tempImage != null);
+
+  // check orientation
+  switch (tempImage?.exif.exifIfd.orientation ?? -1) {
+    case 3:
+      return image.copyRotate(tempImage!, angle: 180);
+    case 6:
+      return image.copyRotate(tempImage!, angle: 90);
+    case 8:
+      return image.copyRotate(tempImage!, angle: -90);
+  }
+  return tempImage!;
+}
+
+Future<image.Image> _fromFile(File file) async {
+  final tempImage = await image.decodeJpgFile(file.path);
   assert(tempImage != null);
 
   // check orientation
