@@ -762,7 +762,7 @@ image.Image _fromByteData(Uint8List data) {
 }
 
 Future<image.Image> _fromFile(File file) async {
-  final tempImage = await image.decodeJpgFile(file.path);
+  final tempImage = await image.decodeImageFile(file.path);
   assert(tempImage != null);
 
   // check orientation
