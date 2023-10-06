@@ -10,8 +10,12 @@ class CropController {
   /// crop given image with current configuration
   void crop() => _delegate.onCrop(false);
 
+  Future<Uint8List> cropFuture() => _delegate.onCropFuture();
+
   /// crop given image with current configuration and circle shape.
   void cropCircle() => _delegate.onCrop(true);
+
+  Future<Uint8List> cropCircleFuture() => _delegate.onCropFuture();
 
   /// Change image to be cropped.
   /// When image is changed, [Rect] of cropping area will be reset.
@@ -38,6 +42,8 @@ class CropControllerDelegate {
   /// callback that [CropController.crop] is called.
   /// the meaning of the value is if cropping a image with circle shape.
   late ValueChanged<bool> onCrop;
+
+  late ValueGetter<Future<Uint8List>> onCropFuture;
 
   /// callback that [CropController.image] is set.
   late ValueChanged<Uint8List> onImageChanged;

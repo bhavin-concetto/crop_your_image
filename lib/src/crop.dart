@@ -315,6 +315,7 @@ class _CropEditorState extends State<_CropEditor> {
     _cropController = widget.controller ?? CropController();
     _cropController.delegate = CropControllerDelegate()
       ..onCrop = _crop
+      ..onCropFuture = _cropFuture
       ..onChangeAspectRatio = (aspectRatio) {
         _resizeWith(aspectRatio, null);
       }
@@ -454,6 +455,31 @@ class _CropEditorState extends State<_CropEditor> {
     widget.onCropped(cropResult);
 
     widget.onStatusChanged?.call(CropStatus.ready);
+  }
+
+  Future<Uint8List> _cropFuture() {
+    assert(_targetImage != null);
+
+    final screenSizeRatio = calculator.screenSizeRatio(
+      _targetImage!,
+      MediaQuery.of(context).size,
+    );
+
+    widget.onStatusChanged?.call(CropStatus.cropping);
+
+    // use compute() not to block UI update
+    return compute(
+      _doCrop,
+      [
+        _targetImage!,
+        Rect.fromLTWH(
+          (_rect.left - _imageRect.left) * screenSizeRatio / _scale,
+          (_rect.top - _imageRect.top) * screenSizeRatio / _scale,
+          _rect.width * screenSizeRatio / _scale,
+          _rect.height * screenSizeRatio / _scale,
+        ),
+      ],
+    );
   }
 
   @override
